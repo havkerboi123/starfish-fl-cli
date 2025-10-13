@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load get_actions from fl_tag %}
+{% load upper_first_char from fl_tag %}
+{% load get_cur_round from fl_tag %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        table,
+        th,
+        td {
+            padding: 10px;
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+
+        .box-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Up to 3 boxes per row */
+            gap: 20px; /* Adjust the gap between boxes */
+            justify-content: flex-start; /* Align boxes to the left of each row */
+        }
+
+        .box {
+            border: 1px solid #000;
+            padding: 10px;
+            box-sizing: border-box;
+            width: 100%; /* Make sure each box takes the full available width */
+        }
+
+        .box p {
+            margin: 5px 0;
+        }
+
+        .box textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .current-highlight-box {
+            border: 2px solid red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+{% block content %}
+    <body>
+    <div class="modal fade" id="logModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Logs</h5>
+                </div>
+                <div class="modal-body" id="logContent">
+                    <!-- Log content will be displayed here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="closeLogsModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        $(document).ready(function () {
+            $("[id^='downloadButton-']").click(function () {
+                var url = $(this).data("message");
+                $.ajax({
+                    url: url,
+                    success: function (data) {
+                        if (data.success) {
+                            if (null != data.content) {
+                                initiateDownload(data.content, data.file_type)
+                            }
+                            location.reload();
+                        } else {
+                            $("#warningMessage").text(data.msg);
+                            $("#warningModal").modal("show");
+                        }
+                    },
+                    error: function (error) {
+                        console.error("An error occurred:", error);
+                    }
+                });
+            });
+        });
+
+        function initiateDownload(content, fileName) {
+            const link = document.createElement('a');
+            link.href = `data:application/zip;base64,${content}`;
+            link.download = fileName;
+            link.click();
+        }
+
+        $('#closeModalButton').click(function () {
+            $('#warningModal').modal('hide');
+        });
+
+
+        $(document).ready(function () {
+            var intervalId; // To store the interval ID
+            var isModalVisible = false; // Track modal visibility
+            var line = 0;
+
+            $('#logModal').on('show.bs.modal', function () {
+                intervalId = setInterval(fetchLogsAndUpdateModal, 2000);
+            });
+
+            $('#logModal').on('hidden.bs.modal', function () {
+                // Clear the interval when the modal is hidden
+                clearInterval(intervalId);
+                isModalVisible = false; // Set modal visibility to false
+            });
+
+            $('#logs').click(function () {
+                // Fetch logs and update modal content when the "Logs" button is clicked
+                isModalVisible = true
+                fetchLogsAndUpdateModal();
+            });
+
+            $('#closeLogsModal').click(function () {
+                $('#logModal').modal('hide');
+                isModalVisible = false
+            });
+
+            function fetchLogsAndUpdateModal() {
+                if (isModalVisible) {
+                    var modal = $('#logModal');
+                    var runId = $('#logs').data('run');
+                    var taskSeq = $('#logs').data('task');
+                    var roundSeq = $('#logs').data('round');
+
+                    $.ajax({
+                        url: '/controller/runs/fetch_logs/',
+                        type: 'GET',
+                        data: {
+                            run_id: runId,
+                            task_seq: taskSeq,
+                            round_seq: roundSeq,
+                            line: line,
+                        },
+                        success: function (data) {
+                            if (data.success) {
+                                if (null != data.content) {
+                                    var logLines = data.content;
+                                    var visibleLineCount = logLines.length;
+
+                                    console.log("Received new  " + visibleLineCount + "lines of logs");
+
+                                    for (var i = 0; i < logLines.length; i++) {
+                                        modal.find('#logContent').append($('<div>').append(logLines[i]));
+                                    }
+                                    line += visibleLineCount; // Update the line position
+                                    modal.modal("show");
+                                }
+                            } else {
+                                $("#warningMessage").text(data.msg);
+                                $("#warningModal").modal("show");
+                            }
+                        },
+                        error: function (error) {
+                            console.error("An error occurred:", error);
+                        }
+                    });
+                }
+            }
+        });
+
+
+    </script>
+    <h2>Site Run Detail</h2>
+    {% for run in runs %}
+        {% if run %}
+            <div class="box {% if participant ==  run.participant and runs|length > 1 %}current-highlight-box{% endif %}">
+                <p>Run ID: {{ run.id }} </p>
+                <p>Project: {{ run.project }} </p>
+                <p>Current Batch: {{ run.batch }} </p>
+                <p>Current Task: {{ run.cur_seq }} </p>
+                <p>Current Round: {{ run | get_cur_round }} </p>
+                <p>Participant Site: {{ run.participant }} </p>
+                <p>Site Role: {{ run.role }} </p>
+                <p>Run Status: {{ run.status }} </p>
+                <p>Time Created: {{ run.created_at }} </p>
+                <p>Last Updated: {{ run.updated_at }} </p>
+                {% if participant == run.participant %}
+                    <button class="btn btn-primary" id='logs' data-toggle="modal" data-target="#logModal"
+                            data-run="{{ run.id }}" data-task="{{ run.cur_seq }}"
+                            data-round="{{ run | get_cur_round }}">
+                        View Logs
+                    </button>
+                {% endif %}
+                {% if run.status|get_actions %}
+                    <p>Actions:</p>
+                    {% for action in run.status|get_actions %}
+                        <a id="downloadButton-{{ run.id }}-{{ action }}"
+                           data-message="/controller/runs/action/{{ run.id }}/{{ run.project }}/{{ run.batch }}/{{ run.role }}/{{ action }}"
+                           class="btn btn-primary">{{ action|upper_first_char }}</a>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        {% endif %}
+    {% endfor %}
+    </body>
+{% endblock %}
+</html>

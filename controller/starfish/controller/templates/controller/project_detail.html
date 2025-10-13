@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Project Detail</title>
+    <style>
+        /* Container for the two columns */
+        .two-columns-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Left column - adjust width as needed */
+        .left-column {
+            flex: 1;
+            padding-right: 20px; /* Add some space between left and right content */
+        }
+
+        /* Right column - adjust width as needed */
+        .right-column {
+            flex: 1;
+            padding-left: 20px; /* Add some space between left and right content */
+        }
+
+        /* Additional styles for your tables and paragraphs */
+        table {
+
+        }
+
+        p {
+            /* Your paragraph styles */
+        }
+    </style>
+</head>
+{% extends 'base.html' %}
+{% block content %}
+    <body>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async function uploadFile(run_id) {
+            const csrftoken = getCookie('csrftoken');
+            console.log(csrftoken)
+            let formData = new FormData();
+            formData.append("run_id", run_id)
+            formData.append("has_dataset", "true")
+            formData.append("dataset", fileupload.files[0]);
+            await fetch(new Request('/controller/runs/dataset/', {headers: {'X-CSRFToken': csrftoken}}), {
+                method: "POST",
+                body: formData
+            });
+        }
+
+        $(document).ready(function () {
+            $("#startButton").click(function () {
+                $.ajax({
+                    url: "/controller/runs/start/{{ project_id }}/{{ site_id }}/",
+                    success: function (data) {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            $("#warningMessage").text(data.msg);
+                            $("#warningModal").modal("show");
+                        }
+                    },
+                    error: function (error) {
+                        console.error("An error occurred:", error);
+                    }
+                });
+            });
+        });
+
+        $(document).ready(function () {
+            $("[id^='openUploadModal']").click(function () {
+                const runId = $(this).data("run-id");
+                $("#uploadModal").modal("show");
+                $("#uploadDataset").off("click").on("click", async function () {
+                    await uploadFile(runId);
+                    $("#uploadModal").modal("hide");
+                });
+            });
+        });
+
+    </script>
+    <h1>Controller - Project Details</h1>
+    {% load last_status_value from fl_tag %}
+    {% load last_run_duration from fl_tag %}
+    {% load site_duration from fl_tag %}
+    {% load get_cur_round from fl_tag %}
+    <div class="two-columns-container">
+        <div class="left-column">
+            <p>Project Name: {{ project_details.name }}</p>
+            {% with status=runs|last_status_value %}
+                <p>Status: {{ status }}</p>
+            {% endwith %}
+            <p>Total Running Time: {{ runs|last_run_duration }}</p>
+            <h2>Tasks</h2>
+
+            <textarea id="jsonTextBox" rows="5" cols="50" readonly>
+        {% for item in project_details.tasks %}
+            {{ item }}
+        {% endfor %}
+        </textarea>
+        </div>
+
+        <div class="right-column">
+            <!-- Content for the right side -->
+            {% if can_start_runs %}
+                <form>
+                    <button id="startButton" class="btn btn-success" type="submit">New Run</button>
+                </form>
+            {% endif %}
+            <p>Current Project Batch: {{ runs | length }}</p>
+            <h2>Participants</h2>
+            <table>
+                <thead>
+                <th>Site ID</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Progress</th>
+                </thead>
+                <tbody>
+
+                {% for pp in participants %}
+                    <tr>
+                        <td>{{ pp.site.id }}</td>
+                        <td>{{ pp.role }}</td>
+                        <td>{{ pp.site.status }}</td>
+                        <td>{{ pp.site|site_duration }}</td>
+                    </tr>
+                {% endfor %}
+                <tbody>
+
+            </table>
+
+            <h2>Runs</h2>
+
+            <table>
+                <tr>
+                    <th>Batch</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Status</th>
+                    <th>Model Version</th>
+                    <th>Actions</th>
+
+                </tr>
+
+                {% for run in runs %}
+                    <tr>
+                        <td>{{ run.batch }}</td>
+                        <td>{{ run.created_at }}</td>
+                        <td>{{ run.updated_at }}</td>
+                        <td>{{ run.status }}</td>
+                        <td>{{ run.batch }}</td>
+                        <td>
+                            {% if run.status == 'Standby' and run.cur_seq == 1 and run|get_cur_round == 1 %}
+                                <button id="openUploadModal" class="btn btn-success" data-toggle="modal"
+                                        data-target="#uploadModal" data-run-id="{{ run.id }}">
+                                    Upload Dataset
+                                </button>
+                            {% endif %}
+                            <a href="/controller/runs/detail/{{ run.batch }}/{{ project_id }}/{{ site_id }}">Details</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+            <div class="modal fade" id="uploadModal" tabindex="-1" role="dialog" aria-labelledby="uploadModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="uploadModalLabel">Upload Dataset</h5>
+                        </div>
+                        <div class="modal-body">
+                            <form>
+                                <input id="fileupload" type="file" name="fileupload"/>
+                                <button id="uploadDataset" class="btn btn-success">Upload Dataset
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <style>
+                table {
+                    width: 80%;
+                    border-collapse: collapse;
+                }
+
+                th, td {
+                    border: 1px solid #ddd;
+                    padding: 1px;
+                    text-align: center;
+                }
+
+                /* Add space between the two columns */
+                td:nth-child(2) {
+                    padding-left: 20px; /* Adjust the value as needed */
+                }
+            </style>
+        </div>
+    </div>
+    </body>
+{% endblock %}
+</html>

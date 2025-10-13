@@ -1,0 +1,67 @@
+version: '3.9'
+
+services:
+  starfish-controller:
+    build:
+      context: .
+    image: starfish-controller
+    depends_on:
+      - controller-scheduler
+      - controller-run-worker
+      - controller-processor-worker
+      - redis
+    ports:
+      - '8001:8000'
+    env_file:
+      - .env
+    command: bash -c "cron && poetry run python3 manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - artifacts:/starfish-controller/local
+
+  controller-scheduler:
+    build:
+      context: .
+    image: starfish-controller
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    entrypoint: [ "poetry", "run", "celery", "-A", "starfish", "beat", "-l", "DEBUG" ]
+    volumes:
+      - artifacts:/starfish-controller/local
+
+  controller-run-worker:
+    build:
+      context: .
+    image: starfish-controller
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    entrypoint: [ "poetry", "run", "celery", "-A", "starfish", "worker", "-l", "DEBUG", "-Q", "starfish.run" ]
+    volumes:
+      - artifacts:/starfish-controller/local
+
+  controller-processor-worker:
+    build:
+      context: .
+    image: starfish-controller
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    entrypoint: [ "poetry", "run", "celery", "-A", "starfish", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "starfish.processor" ]
+    volumes:
+      - artifacts:/starfish-controller/local
+
+
+  redis:
+    image: redis:5.0
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/opt/redis/data
+
+volumes:
+  artifacts: {}
+  redis_data: {}

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Projects</title>
+    <style>
+      table,
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+    </style>
+    <script>
+        function confirmSubmit() {
+            var confirmation = confirm("Are you sure you want to leave this project?");
+            return confirmation;
+        }
+    </script>
+</head>
+{% extends 'base.html' %}
+{% block content %}
+    <body>
+    <h2>Site Status</h2>
+    {% if site_detail %}
+        <p>Site <b>{{ site_uid }}</b> is currently registered. </p>
+    {% else %}
+        <p>Site <b>{{ site_uid }}</b> is currently NOT registered.</p>
+    {% endif %}
+    <form action="/controller/" method="post">
+        {% csrf_token %}
+        <p>Site Name: {{ site_form.name }}</p>
+        <p>Site Description:</p>
+        <p>{{ site_form.description }}</p>
+        {% if site_detail %}
+            <p>
+                <input class="btn btn-primary" type="submit" name="change_site_info" value="Change Site Info">
+                <input class="btn btn-danger" type="submit" name="deregister_site" value="Deregister Site">
+            </p>
+        {% else %}
+            <p><input class="btn btn-success" type="submit" name="register_site" value="Register Site"></p>
+        {% endif %}
+    </form>
+
+    <h2>Projects</h2>
+    <p>
+        <a href="projects/new" style = "text-decoration: None">
+            <button class="btn btn-success">Create New Project</button>
+        </a>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        <a href="projects/join" style = "text-decoration: None">
+            <button class="btn btn-primary">
+            Join A Project
+            </button>
+        </a>
+    </p>
+
+    {% if site_detail %}
+        <p>Site projects are listed below. </p>
+        <table>
+            <thead>
+                <th>Project Name</th>
+                <th>Project Description</th>
+                <th>Site Role</th>
+                <th>Last Updated</th>
+                <th>Actions</th>
+                <th>Leave Project</th>
+            </thead>
+            <tbody>
+            {% for pp in project_participants %}
+                <tr>
+                    <td>{{ pp.project.name }}</td>
+                    <td>{{ pp.project.description }}</td>
+                    <td>{{ pp.role }}</td>
+                    <td>{{ pp.project.updated_at }}</td>
+                    <td><a href="projects/{{ pp.project.id}}/{{site_detail.id}}">
+                        <button class="btn btn-info">Project Details</button>
+                    </a></td>
+                    <td>
+                        <form action= "/controller/projects/leave/" method = "post" onsubmit="return confirmSubmit()">
+                            {% csrf_token %}
+                            <input type="hidden" name="{{ project_leave_form.participant_id.name }}" value="{{ pp.id }}">
+                            <input class = "btn btn-danger" type="submit" name="leave_project" value="Leave Project">
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No projects available for a site NOT registered.</p>
+    {% endif %}
+    </body>
+{% endblock %}
+
+</html>
