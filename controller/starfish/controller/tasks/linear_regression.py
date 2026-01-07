@@ -35,6 +35,11 @@ class LinearRegression(AbstractTask):
         if X is not None and len(X) > 0 and y is not None and len(y) > 0:
             self.sample_size = len(y)
             
+            # NOTE: We expect the data to be pre-processed before upload:
+            # - One-hot encoding should be done before splitting the dataset
+            # - Use preprocess_dataset.py script to create site1 and site2 CSV files
+            # - The script can also be modified to split the dataset into more than two csv files
+            # - This ensures all sites have identical feature sets (same columns)
             # Convert to DataFrame for easier preprocessing
             X_df = pd.DataFrame(X)
             
