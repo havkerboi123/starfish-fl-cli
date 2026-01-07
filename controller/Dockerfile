@@ -1,31 +1,36 @@
-FROM python:3.10-slim
+FROM python:3.10
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Prevent Python from writing pyc files and buffering stdout
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
+# Disable Poetry virtualenv creation to install directly in system python
+ENV POETRY_VIRTUALENVS_CREATE=false
+
+# Install runtime dependencies
+# python:3.10 includes gcc, python headers, etc.
 RUN apt-get update \
-    && apt-get install -y gcc python3-dev musl-dev libmagic1 libffi-dev netcat-traditional \
-    build-essential libpq-dev vim dos2unix bash
+    && apt-get install -y --no-install-recommends \
+    libmagic1 \
+    netcat-traditional \
+    libpq-dev \
+    dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry first to leverage cache
+RUN pip3 install --no-cache-dir poetry
 
 COPY poetry.lock pyproject.toml /app/
 
-# Install Poetry and project dependencies (without copying the whole app yet)
-# This allows Docker to cache dependencies and avoid reinstalling them on every code change
-RUN pip3 install poetry
-RUN poetry install --no-root  # Install only dependencies, skip installing the local package
+# Install project dependencies
+RUN poetry install --no-root --no-cache
 
-# Copy the rest of the project files into the container
-# This includes your source code and other resources
+# Copy the rest of the project files
 COPY . /app/
 
-# Install the local project package itself (fast, since dependencies are already cached)
-# Use --no-root since this is not a package but a Django application
-RUN poetry install --no-root
-
 RUN chmod +x ./entrypoint.sh
-
 RUN dos2unix ./entrypoint.sh
 
 ENTRYPOINT [ "./entrypoint.sh" ]

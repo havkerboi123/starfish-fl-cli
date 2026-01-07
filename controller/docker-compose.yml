@@ -15,7 +15,7 @@ services:
       - '8001:8000'
     env_file:
       - .env
-    command: bash -c "cron && poetry run python3 manage.py runserver 0.0.0.0:8000"
+    command: bash -c "cron && python3 manage.py runserver 0.0.0.0:8000"
     volumes:
       - artifacts:/starfish-controller/local
       - ./starfish:/app/starfish
@@ -30,7 +30,7 @@ services:
       - redis
     env_file:
       - .env
-    entrypoint: [ "poetry", "run", "celery", "-A", "starfish", "beat", "-l", "DEBUG" ]
+    entrypoint: [ "celery", "-A", "starfish", "beat", "-l", "DEBUG" ]
     volumes:
       - artifacts:/starfish-controller/local
       - ./starfish:/app/starfish
@@ -44,7 +44,7 @@ services:
       - redis
     env_file:
       - .env
-    entrypoint: [ "poetry", "run", "celery", "-A", "starfish", "worker", "-l", "DEBUG", "-Q", "starfish.run" ]
+    entrypoint: [ "celery", "-A", "starfish", "worker", "-l", "DEBUG", "-Q", "starfish.run" ]
     volumes:
       - artifacts:/starfish-controller/local
       - ./starfish:/app/starfish
@@ -58,7 +58,7 @@ services:
       - redis
     env_file:
       - .env
-    entrypoint: [ "poetry", "run", "celery", "-A", "starfish", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "starfish.processor" ]
+    entrypoint: [ "celery", "-A", "starfish", "worker", "-l", "DEBUG", "--concurrency=1", "-Q", "starfish.processor" ]
     volumes:
       - artifacts:/starfish-controller/local
       - ./starfish:/app/starfish
