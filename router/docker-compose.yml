@@ -22,6 +22,7 @@ services:
     build:
       context: .
     image: starfish-router
+    container_name: starfish-router
     depends_on:
       - postgres
     ports:
@@ -33,6 +34,18 @@ services:
     command: bash -c "cron && poetry run python3 manage.py runserver 0.0.0.0:8000"
     volumes:
       - artifacts:/starfish/artifacts
+
+  postgres:
+    container_name: starfish-router-postgres
+    image: postgres:12.9
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: UCalgary123
+      POSTGRES_DB: starfish-router
     networks: [starfish-net]
 
 volumes:

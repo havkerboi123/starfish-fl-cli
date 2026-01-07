@@ -71,291 +71,394 @@ Currently, Sites exchange information with RS through polling.
 Message payloads can have end-to-end encryption. RS will not be able to read the message payloads.
 Private key exchanges between sites will be done securely.
 
-## Developers
+## Development Setup
 
-### Environment
+Choose one of the following methods based on your preference:
 
-#### Mac
+### Option 1: Docker Compose (Recommended for Development)
 
-##### Prerequisites
+This is the easiest way to get started. Docker Compose will set up both the application and PostgreSQL database.
 
-###### Docker
+### Prerequisites
 
-We are using [docker](https://docs.docker.com/engine/install/)
-and [docker-compose](https://docs.docker.com/compose/install/) to manage our development environment. Please refer to
-the installation pages.
+- [Docker](https://docs.docker.com/engine/install/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
 
-###### brew
+#### Setup Instructions
 
-We are going to use [brew](https://brew.sh/) to install some tools. If you don't have brew installed on your Mac, run
-the following command:
+1. **Build the images**
+   ```shell
+   docker-compose build
+   ```
 
+2. **Start the services**
+   ```shell
+   docker-compose up -d
+   ```
+
+3. **Make database migrations**
+   ```shell
+   docker exec -it starfish-router poetry run python3 manage.py makemigrations
+   ```
+
+4. **Run database migrations**
+   ```shell
+   docker exec -it starfish-router poetry run python3 manage.py migrate
+   ```
+
+5. **Create a superuser** (first time only)
+   ```shell
+   docker exec -it starfish-router poetry run python3 manage.py createsuperuser
+   ```
+
+6. **Access the application**
+   
+   Open your browser and navigate to: http://localhost:8000/starfish/api/v1/
+
+7. **Stop the services**
+   ```shell
+   docker-compose stop
+   ```
+
+   To stop and remove containers:
+   ```shell
+   docker-compose down
+   ```
+
+### Option 2: Local Development (Without Docker)
+
+This method gives you more control but requires manual setup of PostgreSQL and Python environment.
+
+#### Prerequisites
+
+- Python 3.10.10
+- PostgreSQL database
+- [Poetry](https://python-poetry.org/) for dependency management
+- [pyenv](https://github.com/pyenv/pyenv) (recommended for Python version management on macOS/Linux)
+- [pyenv-win](https://github.com/pyenv-win/pyenv-win) (recommended for Python version management on Windows)
+
+#### Setup Instructions
+
+1. **Install pyenv** (if not already installed)
+
+   **macOS:**
+   ```shell
+   brew update
+   brew install pyenv
+   ```
+
+   **Linux:**
+
+   Follow the instructions here:
+   ```shell
+   https://github.com/pyenv/pyenv?tab=readme-ov-file#installation
+   ```
+
+   **Windows:**
+   
+   Follow the instructions here:
+   ```powershell
+   https://github.com/pyenv/pyenv?tab=readme-ov-file#installation
+   ```
+   
+   After installation, restart your PowerShell/Command Prompt.
+
+2. **Install and configure Python 3.10.10**
+   
+   **macOS/Linux:**
+   ```shell
+   pyenv install 3.10.10
+   pyenv local 3.10.10
+   ```
+   
+   **Windows:**
+   ```powershell
+   pyenv install 3.10.10
+   pyenv local 3.10.10
+   ```
+
+3. **Create and activate virtual environment**
+   
+   **macOS/Linux:**
+   ```shell
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+
+4. **Install Poetry** (if not already installed)
+   
+   **macOS/Linux:**
+   ```shell
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
+   ```
+   
+   After installation, add Poetry to your PATH if it's not already added.
+
+5. **Install project dependencies**
+   ```shell
+   poetry install
+   ```
+
+6. **Configure database connection**
+   
+   Update the `.env` file with your local PostgreSQL credentials:
+   ```properties
+   DATABASE_NAME=starfish-router
+   DATABASE_USER=postgres
+   DATABASE_PASSWORD=your_password
+   DATABASE_HOST=localhost
+   DATABASE_PORT=5432
+   ```
+
+7. **Create the database**
+   
+   **macOS/Linux:**
+   
+   If PostgreSQL is configured with peer authentication, you may need to specify the host:
+   ```shell
+   psql -h localhost -U postgres -c "CREATE DATABASE \"starfish-router\";"
+   ```
+   
+   **Windows:**
+   
+   Using PowerShell (if PostgreSQL bin is in PATH):
+   ```powershell
+   & "C:\Program Files\PostgreSQL\13\bin\psql.exe" -U postgres -c "CREATE DATABASE \"starfish-router\";"
+   ```
+   
+   Or use pgAdmin (GUI tool) to create a database named `starfish-router`.
+
+8. **Run database migrations**
+   ```shell
+   python3 manage.py migrate
+   ```
+   
+   **Note:** On Windows, you might need to use `python` instead of `python3`:
+   ```powershell
+   python manage.py migrate
+   ```
+
+9. **Create a superuser**
+   ```shell
+   python3 manage.py createsuperuser
+   ```
+   
+   **Windows:**
+   ```powershell
+   python manage.py createsuperuser
+   ```
+
+10. **Start the development server**
+    ```shell
+    python3 manage.py runserver
+    ```
+    
+    **Windows:**
+    ```powershell
+    python manage.py runserver
+    ```
+
+11. **Access the application**
+    
+    Open your browser and navigate to: http://localhost:8000/starfish/api/v1/
+
+#### Deactivate virtual environment
+
+**macOS/Linux:**
 ```shell
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+deactivate
 ```
 
-###### Pyenv
-
-We would suggest to use [pyenv](https://github.com/pyenv/pyenv) to manage and switch multiple versions of Python.
-To install follow steps below.
-
-```shell
-brew update
-brew install pyenv
+**Windows:**
+```powershell
+deactivate
 ```
 
-If this didn't work for you try these [fixes](https://github.com/pyenv/pyenv#homebrew-in-macos).
+## Development Tasks
 
-To test if this was installed correctly try running the following in your terminal:
+### Running Background Jobs
 
+Execute a scheduled job manually:
 ```shell
-pyenv versions
-```
-
-We are going to be using Python version 3.10.10, so let's get that installed.
-
-```shell
-# install the python version to OS
-pyenv install 3.10.10
-# specify python version to this project
-pyenv local 3.10.10
-# verify python version in pyenv
-pyenv exec python -V
-# create virtual env with this python version
-pyenv exec python -m venv .venv
-# active this virtual env
-source .venv/bin/activate
-```
-
-###### Poetry
-
-We are going to use [poetry](https://python-poetry.org/) to manage dependencies.
-
-Run the following command in your terminal to install poetry:
-
-```shell
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-#### Windows
-
-Todo
-
-#### Linux
-
-Todo
-
-### Development
-
-#### With Docker
-
-##### Build docker image
-
-```shell
-docker build -t starfish-router:latest .
-```
-
-##### Start
-
-```shell
-docker run -it -p 8000:8000 docker.io/library/starfish-router:latest
-```
-
-#### Docker Compose
-
-To start
-
-```shell
-docker-compose up -d
-```
-
-To Stop
-
-```shell
-docker-compose stop
-docker-compose down
-```
-
-#### Without Docker
-
-##### Create a virtual environment
-
-```shell
-# install the python version to OS
-pyenv install 3.10.10
-# specify python version to this project
-pyenv local 3.10.10
-# verify python version in pyenv
-pyenv exec python -V
-# create virtual env with this python version
-pyenv exec python -m venv .venv
-# active this virtual env
-source .venv/bin/activate
-```
-
-##### Install dependencies
-
-```shell
-poetry install
-```
-
-##### Database Migration
-
-```shell
-python3 manage.py migrate
-```
-
-##### Start Development Server
-
-```shell
-python3 manage.py runserver
-```
-
-##### To run a job
-
-```shell
-python3 manage.py runjob ${job_name}
+python3 manage.py runjob <job_name>
 ```
 
 Example:
-
 ```shell
 python3 manage.py runjob check_site_status
 ```
 
-##### De-active virtual environment
+### Running Tests
 
-Type `deactivate` in your terminal
-
-#### Database
-
-If it is the first time starting, you need to create the database in postgres. Either go with command line or UI.
-Current database name is **starfish-router**
-You may need to restart the service after the database been created.
-
-#### The First User
-
-You may need to create the first user if it is the first time starting.
-
+Run the test suite:
 ```shell
-python3 manage.py createsuperuser
+python3 manage.py test
 ```
 
-or inside docker container
-
-```shell
-docker exec -it <starfish-router-container-id> bash
-poetry run python3 manage.py migrate
-poetry run python3 manage.py createsuperuser
-docker-compose restart
+**Windows:**
+```powershell
+python manage.py test
 ```
 
-#### Code Format
+### Code Formatting
 
-Run the following command to format python code in starfish-router directory
-
+Format Python code using autopep8:
 ```shell
 autopep8 --exclude='*/migrations/*' --in-place --recursive ./starfish/
 ```
 
-#### Change Dependency
+### Managing Dependencies
 
-To add dependency
-
+**Add a new dependency:**
 ```shell
-poetry add xxxx
+poetry add <package_name>
 ```
 
-append `--group=dev` if you want to add it in as a development dependency.
-
-To remove dependency
-
+**Add a development dependency:**
 ```shell
-poetry remove xxx
+poetry add --group=dev <package_name>
 ```
 
-### Recommended Quick Start (using docker-compose)
-
-1. Build images
-
+**Remove a dependency:**
 ```shell
-docker-compose build
+poetry remove <package_name>
 ```
 
-2. Create a db with name : **starfish-router** for first init
+## Production Deployment
 
-   Suggest using **Pycharm UI**, and you can find db details in **.env** file for connection
+### Prerequisites
 
-   Or if you prefer command line:
-   ```bash
-   docker exec -it starfish-router_postgres_1 psql -U postgres -c "CREATE DATABASE \"starfish-router\";"
+- Access to the git repository
+- Docker and Docker Compose installed
+- PostgreSQL database (managed by Docker Compose)
+- Internet access
+- Properly configured firewall and network settings
+
+### Configuration
+
+Before deployment, configure the following files:
+
+#### 1. `docker-compose.yml`
+- **Service Port:** Default is `8000`. Update if there's a conflict with existing services.
+- **Volumes:** Mounted volumes preserve logs and model files:
+  - Application artifacts: `/starfish/artifacts` (configurable)
+  - Database data: `/var/lib/postgresql/data` (configurable)
+- **Database credentials:** Must match those in `.env` file
+
+#### 2. `.env` file
+Configure application settings:
+```properties
+DEBUG=False                          # Set to False for production
+SECRET_KEY=<generate-strong-key>     # Generate a secure secret key
+DATABASE_NAME=starfish-router
+DATABASE_USER=postgres
+DATABASE_PASSWORD=<secure-password>  # Use a strong password
+DATABASE_HOST=postgres               # Service name from docker-compose.yml
+DATABASE_PORT=5432
+```
+
+**Important:** 
+- Set `DEBUG=False` in production
+- Use a strong, unique `SECRET_KEY`
+- Use a secure database password
+- Set `DATABASE_HOST=postgres` (the service name in Docker Compose)
+
+### Network Security
+
+Ensure proper network configuration:
+
+- **Firewall:** Configure to allow access only from trusted sources
+- **IP Whitelist:** Restrict access to specific IP addresses (e.g., starfish-controller instances)
+- **Port Access:** Ensure the service port (default 8000) is accessible from authorized networks only
+- **Additional Security:** Consider using:
+  - Reverse proxy (e.g., Nginx)
+  - SSL/TLS certificates
+  - Third-party security services (e.g., Cloudflare)
+
+### Deployment Steps
+
+1. **Build the images**
+   ```shell
+   docker-compose build
    ```
 
-3. Run fl and postgres services
+2. **Start the services**
+   ```shell
+   docker-compose up -d
+   ```
 
+3. **Make database migrations**
+   ```shell
+   docker exec -it starfish-router poetry run python3 manage.py makemigrations
+   ```
+
+4. **Run database migrations**
+   ```shell
+   docker exec -it starfish-router poetry run python3 manage.py migrate
+   ```
+
+5. **Create a superuser** (first time only)
+   ```shell
+   docker exec -it starfish-router poetry run python3 manage.py createsuperuser
+   ```
+   
+   **Important:** Save the username and password securely for configuring starfish-controller.
+
+7. **Verify the deployment**
+   
+   Visit http://your-server-ip:8000/starfish/api/v1/ (replace with your actual server address and port)
+
+### Maintenance
+
+#### View logs
 ```shell
-docker-compose up -d
+docker-compose logs -f starfish-router
 ```
 
-4. open url: http://localhost:8000/starfish/api/v1/
+#### Restart services
+```shell
+docker-compose restart
+```
 
-
-5. Stop services
-
- ```shell
+#### Stop services
+```shell
 docker-compose stop
 ```
 
-### Production Deployment
-
-#### Prerequisites
-
-1. Access to the git repository
-2. Docker and Docker Compose is installed
-3. Access to Internet
-
-#### Configuration
-
-Please refer to the `docker-compose.yml` and `.env` file. The first one defines dependencies and middleware configs,
-the `.env` defines configs of the application.
-
-* Service Port: `8000` by default, please update if it has conflict with your existing service
-* Volumes: The service will be running inside the docker container, but the mounted volumes will keep the intermedia
-  files(logs and models). `/starfish/artifacts` by default, please update it if needed.
-* Database: The postgres is used as the database. Please make sure the username and password are the same be configured
-  in `docker-compose.yml` and `.env`. By default, `/var/lib/postgresql/data` will store the database data as the mount
-  volume.
-
-#### Network Condition
-
-Please make sure the firewall is configured well and the service port is accessible from outside the physical machine or
-local area network. For example, the IP whitelist could be involved to prevent attacks which only allow services(
-starfish-controller) running on specified outbound IP to
-access the starfish-router. Other mechanism could prevent attacks as well, like involving third-party service,
-cloudflare or others.
-
-#### To Start
-
-1. Build images
-
+#### Stop and remove containers
 ```shell
+docker-compose down
+```
+
+#### Update the application
+```shell
+git pull
 docker-compose build
+docker-compose up -d
 ```
 
-2. Run postgres services under this repo folder
+### Backup and Recovery
 
+#### Backup database
 ```shell
-docker-compose up -d postgres
+docker exec -it starfish-router pg_dump -U postgres starfish-router > backup_$(date +%Y%m%d).sql
 ```
 
-3. Create the database. Create the database with name defined as the `DATABASE_NAME` environment in `.env` file. By
-   default, the database naming **starfish-router** for first init the service.
-4. Start the starfish router service. Execute `docker-compose up -d starfish-router` to start.
-5. Create a user. Access into the docker container and execute the following to create the first user. Please remember
-   the username and password for configuring the starfish-controller.
-
+#### Restore database
 ```shell
-poetry run python3 manage.py createsuperuser
+cat backup_file.sql | docker exec -i starfish-router psql -U postgres starfish-router
 ```
 
-6. Testing the connection. Visit http://localhost:8000/starfish/api/v1/ if the service port is configured as `8000`.
+## CI/CD Pipeline Documentation
+- **[CI/CD Pipeline Documentation](CI_CD_PIPELINE.md)** - Learn about automated testing and deployment

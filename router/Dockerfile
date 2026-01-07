@@ -2,42 +2,42 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# 1. Disable Poetry virtualenv (Installs libs globally)
+ENV POETRY_VIRTUALENVS_CREATE=false
+# 2. Standard Python settings
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
+# 3. Install System Dependencies
+# We clean up apt lists to keep the image small
 RUN apt-get update \
-    && apt-get install -y gcc python3-dev musl-dev libmagic1 libffi-dev netcat-traditional \
-    build-essential libpq-dev cron vim dos2unix bash
+    && apt-get install -y --no-install-recommends \
+    gcc python3-dev musl-dev libmagic1 libffi-dev netcat-traditional \
+    build-essential libpq-dev cron vim dos2unix bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# 4. Install Poetry
+RUN pip3 install --no-cache-dir poetry
 
 COPY poetry.lock pyproject.toml /app/
 
-# Install Poetry and project dependencies (without copying the whole app yet)
-# This allows Docker to cache dependencies and avoid reinstalling them on every code change
-RUN pip3 install poetry
-RUN poetry install --no-root  # Install only dependencies, skip installing the local package
+# 5. Install Dependencies (Global System Install)
+RUN poetry install --no-root --no-cache
 
-# Copy the rest of the project files into the container
-# This includes your source code and other resources
 COPY . /app/
 
-# Install the local project package itself (fast, since dependencies are already cached)
-RUN poetry install
+# 6. Install the local project package itself
+RUN poetry install --no-cache
 
-# Cron Job
+# Cron Job Setup
 COPY crontab /etc/cron.d/crontab
+RUN chmod 0644 /etc/cron.d/crontab && \
+    touch /var/log/cron.log && \
+    crontab /etc/cron.d/crontab
 
-RUN chmod 0644 /etc/cron.d/crontab
-
-RUN touch /var/log/cron.log
-
-RUN crontab /etc/cron.d/crontab
-
-RUN chmod +x ./entrypoint.sh
-
-ENV PYTHONPATH "${PYTHONPATH}:/usr/local/lib/python3.10/site-packages"
-
-RUN dos2unix ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh && dos2unix ./entrypoint.sh
 
 ENTRYPOINT [ "./entrypoint.sh" ]
 
-CMD cron && poetry run python3 manage.py runserver 0.0.0.0:8000
+# 7. Simplified CMD (No 'poetry run' needed)
+CMD cron && python3 manage.py runserver 0.0.0.0:8000
