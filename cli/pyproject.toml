@@ -1,7 +1,6 @@
 [tool.poetry]
 name = "starfish-cli"
-version = "0.1.0"
-description = "CLI for Starfish-FL — used by humans and AI agents"
+description = "CLI for Starfish-FL"
 
 
 [tool.poetry.dependencies]
