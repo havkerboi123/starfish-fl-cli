@@ -2,7 +2,7 @@
 name = "starfish-cli"
 version = "0.1.0"
 description = "CLI for Starfish-FL — used by humans and AI agents"
-authors = ["Your Name"]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
