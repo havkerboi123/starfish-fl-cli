@@ -116,7 +116,7 @@ class StarfishClient:
         return self.put(f"/runs/{run_id}/status/", data={"status": status})
 
     
-    #downlaods
+    #downloads
 
     def download_artifact(self, run_id: int, file_type: str, all_runs: bool = True):
         """Download artifacts or logs as a ZIP file."""
