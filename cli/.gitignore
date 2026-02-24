@@ -1,0 +1,22 @@
+# Environment files — contain sensitive credentials, never commit these
+.env
+.env.site2
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Poetry
+.venv/
+dist/
+*.egg-info/
+
+# Downloaded artifacts and datasets
+*.zip
+*.csv
+
+# OS
+.DS_Store
+Thumbs.db
